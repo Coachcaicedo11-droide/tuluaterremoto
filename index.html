@@ -478,6 +478,771 @@
     <script>
         const { useState, useEffect } = React;
 
+        const SUPABASE_URL = 'https://mtumymoaqissgfmsfzcp.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_sBL7cX_IVxzFdXeGxZQGDw_W9oGlUkC';
+
+        let supabaseClient = null;
+        
+        try {
+            if (SUPABASE_URL !== 'https://tu-proyecto.supabase.co') {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            }
+        } catch (e) {
+            console.log('Supabase no configurado');
+        }
+
+        const MOCK_ZONES = [];
+
+        const MOCK_SITES = [];
+
+        function App() {
+            const [currentTab, setCurrentTab] = useState('dashboard');
+            const [zones, setZones] = useState(() => {
+                try {
+                    const stored = localStorage.getItem('zones');
+                    return stored ? JSON.parse(stored) : MOCK_ZONES;
+                } catch {
+                    return MOCK_ZONES;
+                }
+            });
+            const [sites, setSites] = useState(() => {
+                try {
+                    const stored = localStorage.getItem('sites');
+                    return stored ? JSON.parse(stored) : MOCK_SITES;
+                } catch {
+                    return MOCK_SITES;
+                }
+            });
+
+            const [selectedCategory, setSelectedCategory] = useState('all');
+            const [selectedUrgency, setSelectedUrgency] = useState('all');
+            const [searchTerm, setSearchTerm] = useState('');
+            const [formData, setFormData] = useState({ name: '', location: '', owner: '', phone: '', schedule: '', urgency: 'medium', needs: '' });
+            const [success, setSuccess] = useState(false);
+            const [selectedZone, setSelectedZone] = useState(null);
+            const [newComment, setNewComment] = useState('');
+
+            // Guardar en localStorage
+            useEffect(() => {
+                localStorage.setItem('zones', JSON.stringify(zones));
+            }, [zones]);
+
+            useEffect(() => {
+                localStorage.setItem('sites', JSON.stringify(sites));
+            }, [sites]);
+
+            const handleSubmitZone = (e) => {
+                e.preventDefault();
+                const newZone = {
+                    id: Math.max(...zones.map(z => z.id), 0) + 1,
+                    name: formData.name,
+                    status: 'pending',
+                    owner: formData.owner,
+                    phone: formData.phone,
+                    schedule: formData.schedule,
+                    lat: null,
+                    lng: null,
+                    comments: []
+                };
+                setZones([...zones, newZone]);
+                setSuccess(true);
+                setFormData({ name: '', location: '', owner: '', phone: '', schedule: '', urgency: 'medium', needs: '' });
+                setTimeout(() => setSuccess(false), 3000);
+            };
+
+            const handleAddComment = (itemId, isZone) => {
+                if (!newComment.trim()) return;
+
+                if (isZone) {
+                    setZones(zones.map(z => z.id === itemId ? {
+                        ...z,
+                        comments: [...(z.comments || []), { text: newComment, time: new Date().toLocaleTimeString() }]
+                    } : z));
+                } else {
+                    setSites(sites.map(s => s.id === itemId ? {
+                        ...s,
+                        comments: [...(s.comments || []), { text: newComment, time: new Date().toLocaleTimeString() }]
+                    } : s));
+                }
+                setNewComment('');
+            };
+
+            const downloadCSV = () => {
+                let csv = 'Zona,Sitio,Categoría,Teléfono,Estado,Urgencia,Responsable,Horario\n';
+                sites.forEach(site => {
+                    const zone = zones.find(z => z.id === site.zone_id);
+                    csv += `"${zone?.name}","${site.name}","${site.category}","${site.phone}","${site.status}","${site.urgency}","${site.owner}","${site.schedule}"\n`;
+                });
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'sitios-tulua.csv';
+                a.click();
+            };
+
+            const getCategoryIcon = (category) => {
+                const icons = { acopio: '🎁', iglesia: '⛪', escuela: '🏫', comunitario: '🏘️', deportivo: '⚽' };
+                return icons[category] || '📍';
+            };
+
+            const getUrgencyLabel = (urgency) => {
+                const labels = { critical: '🔴 CRÍTICO', high: '🟠 ALTO', medium: '🟡 MEDIO', low: '🟢 BAJO' };
+                return labels[urgency] || '🟡 MEDIO';
+            };
+
+            const filteredSites = sites.filter(s => {
+                const matchesCategory = selectedCategory === 'all' || s.category === selectedCategory;
+                const matchesUrgency = selectedUrgency === 'all' || s.urgency === selectedUrgency;
+                const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                    zones.find(z => z.id === s.zone_id)?.name.toLowerCase().includes(searchTerm.toLowerCase());
+                return matchesCategory && matchesUrgency && matchesSearch;
+            });
+
+            const activeCount = sites.filter(s => s.status === 'active').length;
+            const closedCount = sites.filter(s => s.status === 'closed').length;
+            const criticalCount = sites.filter(s => s.urgency === 'critical').length;
+
+            return React.createElement('div', { className: 'app' },
+                React.createElement('header', { className: 'navbar' },
+                    React.createElement('h1', null, '📍 Sitios de Tuluá'),
+                    React.createElement('p', null, 'Juntos mapeamos las necesidades locales')
+                ),
+
+                React.createElement('nav', { className: 'tabs-nav' },
+                    React.createElement('button', { className: `tab-btn ${currentTab === 'dashboard' ? 'active' : ''}`, onClick: () => setCurrentTab('dashboard') }, '📊 Dashboard'),
+                    React.createElement('button', { className: `tab-btn ${currentTab === 'browse' ? 'active' : ''}`, onClick: () => { setCurrentTab('browse'); setSelectedZone(null); } }, '🗺️ Explorar'),
+                    React.createElement('button', { className: `tab-btn ${currentTab === 'add' ? 'active' : ''}`, onClick: () => setCurrentTab('add') }, '➕ Agregar'),
+                    React.createElement('button', { className: `tab-btn ${currentTab === 'search' ? 'active' : ''}`, onClick: () => setCurrentTab('search') }, '🔍 Buscar'),
+                    React.createElement('button', { className: `tab-btn ${currentTab === 'export' ? 'active' : ''}`, onClick: () => setCurrentTab('export') }, '📥 Exportar')
+                ),
+
+                React.createElement('div', { className: 'content' },
+                    currentTab === 'dashboard' ? React.createElement(React.Fragment, null,
+                        React.createElement('div', { className: 'dashboard' },
+                            React.createElement('div', { className: 'stat-card' },
+                                React.createElement('h3', null, '✓ Zonas'),
+                                React.createElement('div', { className: 'number' }, zones.length),
+                                React.createElement('div', { className: 'label' }, 'verificadas')
+                            ),
+                            React.createElement('div', { className: 'stat-card' },
+                                React.createElement('h3', null, '🏢 Sitios'),
+                                React.createElement('div', { className: 'number' }, activeCount),
+                                React.createElement('div', { className: 'label' }, 'activos')
+                            ),
+                            React.createElement('div', { className: 'stat-card' },
+                                React.createElement('h3', null, '🔴 Críticos'),
+                                React.createElement('div', { className: 'number' }, criticalCount),
+                                React.createElement('div', { className: 'label' }, 'urgentes')
+                            ),
+                            React.createElement('div', { className: 'stat-card' },
+                                React.createElement('h3', null, '✗ Cerrados'),
+                                React.createElement('div', { className: 'number' }, closedCount),
+                                React.createElement('div', { className: 'label' }, 'reportados')
+                            )
+                        ),
+                        React.createElement('div', { style: { marginBottom: '1.5rem' } },
+                            React.createElement('h3', { style: { fontSize: '16px', fontWeight: 700, marginBottom: '1rem', color: '#16a34a' } }, '📋 Últimos sitios'),
+                            React.createElement('div', { className: 'zones-container' },
+                                sites.slice(0, 3).map(site =>
+                                    React.createElement('div', { key: site.id, className: 'zone-item' },
+                                        React.createElement('div', { className: 'zone-header' },
+                                            React.createElement('div', null,
+                                                React.createElement('div', { className: 'zone-name' }, getCategoryIcon(site.category) + ' ' + site.name),
+                                                React.createElement('span', { className: `urgency-badge urgency-${site.urgency}` }, getUrgencyLabel(site.urgency))
+                                            ),
+                                            React.createElement('span', { className: 'zone-badge' }, site.status === 'active' ? '✓ Activo' : '✗ Cerrado')
+                                        ),
+                                        React.createElement('div', { className: 'zone-info' },
+                                            React.createElement('div', { className: 'info-row' }, '👤 ' + site.owner),
+                                            React.createElement('div', { className: 'info-row' }, '📞 ' + site.phone),
+                                            React.createElement('div', { className: 'info-row' }, '🕐 ' + site.schedule)
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    ) : currentTab === 'browse' ? React.createElement(React.Fragment, null,
+                        React.createElement('div', { className: 'filters' },
+                            React.createElement('button', { className: `filter-btn ${selectedCategory === 'all' ? 'active' : ''}`, onClick: () => setSelectedCategory('all') }, '📍 Todos'),
+                            React.createElement('button', { className: `filter-btn ${selectedCategory === 'acopio' ? 'active' : ''}`, onClick: () => setSelectedCategory('acopio') }, '🎁 Acopio'),
+                            React.createElement('button', { className: `filter-btn ${selectedCategory === 'iglesia' ? 'active' : ''}`, onClick: () => setSelectedCategory('iglesia') }, '⛪ Iglesia'),
+                            React.createElement('button', { className: `filter-btn ${selectedCategory === 'escuela' ? 'active' : ''}`, onClick: () => setSelectedCategory('escuela') }, '🏫 Escuela'),
+                            React.createElement('button', { className: `filter-btn ${selectedCategory === 'comunitario' ? 'active' : ''}`, onClick: () => setSelectedCategory('comunitario') }, '🏘️ Comunitario')
+                        ),
+                        React.createElement('div', { className: 'filters' },
+                            React.createElement('button', { className: `filter-btn ${selectedUrgency === 'all' ? 'active' : ''}`, onClick: () => setSelectedUrgency('all') }, 'Todas urgencias'),
+                            React.createElement('button', { className: `filter-btn ${selectedUrgency === 'critical' ? 'active' : ''}`, onClick: () => setSelectedUrgency('critical') }, '🔴 Crítico'),
+                            React.createElement('button', { className: `filter-btn ${selectedUrgency === 'high' ? 'active' : ''}`, onClick: () => setSelectedUrgency('high') }, '🟠 Alto'),
+                            React.createElement('button', { className: `filter-btn ${selectedUrgency === 'medium' ? 'active' : ''}`, onClick: () => setSelectedUrgency('medium') }, '🟡 Medio'),
+                            React.createElement('button', { className: `filter-btn ${selectedUrgency === 'low' ? 'active' : ''}`, onClick: () => setSelectedUrgency('low') }, '🟢 Bajo')
+                        ),
+                        React.createElement('div', { className: 'zones-container' },
+                            filteredSites.length === 0 ?
+                                React.createElement('div', { className: 'empty-state' },
+                                    React.createElement('div', { className: 'empty-icon' }, '🔍'),
+                                    React.createElement('div', { className: 'empty-text' }, 'No hay sitios con esos filtros')
+                                ) :
+                                filteredSites.map(site => {
+                                    const zone = zones.find(z => z.id === site.zone_id);
+                                    return React.createElement('div', { key: site.id, className: 'zone-item' },
+                                        React.createElement('div', { className: 'zone-header' },
+                                            React.createElement('div', null,
+                                                React.createElement('div', { className: 'zone-name' }, getCategoryIcon(site.category) + ' ' + site.name),
+                                                React.createElement('span', { className: `urgency-badge urgency-${site.urgency}` }, getUrgencyLabel(site.urgency))
+                                            ),
+                                            React.createElement('span', { className: 'zone-badge' }, site.status === 'active' ? '✓ Activo' : '✗ Cerrado')
+                                        ),
+                                        React.createElement('div', { className: 'zone-info' },
+                                            React.createElement('div', { className: 'info-row' }, '📍 ' + zone?.name),
+                                            React.createElement('div', { className: 'info-row' }, '👤 ' + site.owner),
+                                            React.createElement('div', { className: 'info-row' }, '📞 ' + site.phone),
+                                            React.createElement('div', { className: 'info-row' }, '🕐 ' + site.schedule)
+                                        ),
+                                        site.comments && site.comments.length > 0 && React.createElement('div', { className: 'comment-section' },
+                                            React.createElement('div', { style: { fontWeight: 600, marginBottom: '0.5rem', fontSize: '12px', color: '#16a34a' } }, site.comments.length + ' comentario(s)'),
+                                            site.comments.slice(0, 2).map((comment, idx) =>
+                                                React.createElement('div', { key: idx, className: 'comment-item' },
+                                                    React.createElement('div', { className: 'comment-text' }, '"' + comment.text + '"'),
+                                                    React.createElement('div', { className: 'comment-time' }, comment.time)
+                                                )
+                                            )
+                                        )
+                                    );
+                                })
+                        )
+                    ) : currentTab === 'add' ? React.createElement(React.Fragment, null,
+                        React.createElement('h2', { style: { fontSize: '20px', fontWeight: 700, marginBottom: '0.5rem', color: '#16a34a' } }, 'Agregar zona'),
+                        success && React.createElement('div', { className: 'success-box' }, '✓ ¡Zona agregada!'),
+                        React.createElement('form', { onSubmit: handleSubmitZone },
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', { className: 'form-label' }, '¿Nombre de la zona?'),
+                                React.createElement('input', { type: 'text', className: 'form-input', placeholder: 'Ej: La Esperanza', value: formData.name, onChange: e => setFormData({ ...formData, name: e.target.value }), required: true })
+                            ),
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', { className: 'form-label' }, '¿Dónde está?'),
+                                React.createElement('input', { type: 'text', className: 'form-input', placeholder: 'Ubicación...', value: formData.location, onChange: e => setFormData({ ...formData, location: e.target.value }), required: true })
+                            ),
+                            React.createElement('div', { className: 'two-column' },
+                                React.createElement('div', { className: 'form-group' },
+                                    React.createElement('label', { className: 'form-label' }, 'Responsable'),
+                                    React.createElement('input', { type: 'text', className: 'form-input', placeholder: 'Nombre...', value: formData.owner, onChange: e => setFormData({ ...formData, owner: e.target.value }) })
+                                ),
+                                React.createElement('div', { className: 'form-group' },
+                                    React.createElement('label', { className: 'form-label' }, 'Teléfono'),
+                                    React.createElement('input', { type: 'tel', className: 'form-input', placeholder: '+57...', value: formData.phone, onChange: e => setFormData({ ...formData, phone: e.target.value }) })
+                                )
+                            ),
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', { className: 'form-label' }, 'Horario'),
+                                React.createElement('input', { type: 'text', className: 'form-input', placeholder: 'Lunes a Viernes 8am - 5pm', value: formData.schedule, onChange: e => setFormData({ ...formData, schedule: e.target.value }) })
+                            ),
+                            React.createElement('div', { className: 'form-group' },
+                                React.createElement('label', { className: 'form-label' }, 'Urgencia'),
+                                React.createElement('select', { className: 'form-select', value: formData.urgency, onChange: e => setFormData({ ...formData, urgency: e.target.value }) },
+                                    React.createElement('option', { value: 'critical' }, '🔴 Crítico'),
+                                    React.createElement('option', { value: 'high' }, '🟠 Alto'),
+                                    React.createElement('option', { value: 'medium' }, '🟡 Medio'),
+                                    React.createElement('option', { value: 'low' }, '🟢 Bajo')
+                                )
+                            ),
+                            React.createElement('button', { type: 'submit', className: 'btn btn-primary' }, '✓ Agregar zona')
+                        )
+                    ) : currentTab === 'search' ? React.createElement(React.Fragment, null,
+                        React.createElement('h2', { style: { fontSize: '20px', fontWeight: 700, marginBottom: '1rem', color: '#16a34a' } }, 'Búsqueda avanzada'),
+                        React.createElement('div', { className: 'search-box' },
+                            React.createElement('input', { type: 'text', placeholder: '🔍 Buscar zona o sitio...', value: searchTerm, onChange: e => setSearchTerm(e.target.value) })
+                        ),
+                        React.createElement('div', { className: 'filters' },
+                            React.createElement('button', { className: `filter-btn ${selectedCategory === 'all' ? 'active' : ''}`, onClick: () => setSelectedCategory('all') }, '📍 Todos'),
+                            React.createElement('button', { className: `filter-btn ${selectedCategory === 'acopio' ? 'active' : ''}`, onClick: () => setSelectedCategory('acopio') }, '🎁 Acopio'),
+                            React.createElement('button', { className: `filter-btn ${selectedCategory === 'iglesia' ? 'active' : ''}`, onClick: () => setSelectedCategory('iglesia') }, '⛪ Iglesia')
+                        ),
+                        React.createElement('div', { className: 'zones-container' },
+                            filteredSites.length === 0 ?
+                                React.createElement('div', { className: 'empty-state' },
+                                    React.createElement('div', { className: 'empty-icon' }, '🔍'),
+                                    React.createElement('div', { className: 'empty-text' }, 'No hay coincidencias')
+                                ) :
+                                filteredSites.map(site => {
+                                    const zone = zones.find(z => z.id === site.zone_id);
+                                    return React.createElement('div', { key: site.id, className: 'zone-item' },
+                                        React.createElement('div', { className: 'zone-header' },
+                                            React.createElement('div', { className: 'zone-name' }, getCategoryIcon(site.category) + ' ' + site.name),
+                                            React.createElement('span', { className: 'zone-badge' }, site.status === 'active' ? '✓' : '✗')
+                                        ),
+                                        React.createElement('div', { className: 'zone-info' },
+                                            React.createElement('div', { className: 'info-row' }, '📍 ' + zone?.name),
+                                            React.createElement('div', { className: 'info-row' }, '👤 ' + site.owner),
+                                            React.createElement('div', { className: 'info-row' }, '📞 ' + site.phone)
+                                        ),
+                                        React.createElement('div', { style: { marginTop: '0.8rem' } },
+                                            React.createElement('input', { type: 'text', placeholder: 'Agregar comentario...', value: newComment, onChange: e => setNewComment(e.target.value), style: { width: '100%', padding: '0.6rem', border: '1px solid #dcfce7', borderRadius: '6px', fontSize: '12px' }, onKeyPress: e => e.key === 'Enter' && handleAddComment(site.id, false) }),
+                                            React.createElement('button', { onClick: () => handleAddComment(site.id, false), style: { width: '100%', marginTop: '0.5rem', padding: '0.5rem', background: '#f0fdf4', border: '1px solid #dcfce7', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: '#16a34a' } }, 'Comentar')
+                                        )
+                                    );
+                                })
+                        )
+                    ) : React.createElement(React.Fragment, null,
+                        React.createElement('h2', { style: { fontSize: '20px', fontWeight: 700, marginBottom: '1rem', color: '#16a34a' } }, 'Descargar datos'),
+                        React.createElement('button', { onClick: downloadCSV, className: 'btn btn-primary' }, '📥 Descargar como CSV'),
+                        React.createElement('div', { className: 'info-box' },
+                            React.createElement('div', { className: 'info-box-title' }, '📊 CSV incluye'),
+                            React.createElement('div', { className: 'info-box-text' }, 'Zona, Sitio, Categoría, Teléfono, Estado, Urgencia, Responsable, Horario')
+                        )
+                    )
+                )
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            box-shadow: 0 4px 20px rgba(22, 163, 74, 0.3);
+        }
+
+        .navbar h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .navbar p {
+            font-size: 14px;
+            opacity: 0.95;
+            font-weight: 500;
+        }
+
+        .tabs-nav {
+            display: flex;
+            gap: 0;
+            background: white;
+            position: sticky;
+            top: 110px;
+            z-index: 29;
+            border-bottom: 2px solid #f0fdf4;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            flex-shrink: 0;
+            padding: 1.2rem 1rem;
+            text-align: center;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-size: 13px;
+            color: #9ca3af;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+
+        .tab-btn.active {
+            color: #16a34a;
+            border-bottom-color: #16a34a;
+            background: #f0fdf4;
+        }
+
+        .content {
+            min-height: 300px;
+            padding: 1.5rem 1.5rem 6rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+            border: 2px solid #86efac;
+            border-radius: 12px;
+            padding: 1.2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.1);
+        }
+
+        .stat-card h3 {
+            font-size: 12px;
+            color: #9ca3af;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .stat-card .number {
+            font-size: 28px;
+            font-weight: 700;
+            color: #16a34a;
+        }
+
+        .stat-card .label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 0.3rem;
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .filter-btn {
+            flex-shrink: 0;
+            padding: 0.6rem 1rem;
+            border: 2px solid #dcfce7;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: #16a34a;
+        }
+
+        .filter-btn:hover {
+            background: #f0fdf4;
+            border-color: #86efac;
+        }
+
+        .filter-btn.active {
+            background: #16a34a;
+            color: white;
+            border-color: #16a34a;
+        }
+
+        .zones-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .zone-item {
+            background: linear-gradient(135deg, #f0fdf4 0%, #f7fee7 100%);
+            border: 2px solid #dcfce7;
+            border-radius: 12px;
+            padding: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+
+        .zone-item:hover {
+            border-color: #86efac;
+            background: linear-gradient(135deg, #f0fdf4 0%, #e7f5ee 100%);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(22, 163, 74, 0.15);
+        }
+
+        .zone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.8rem;
+        }
+
+        .zone-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #16a34a;
+        }
+
+        .zone-badge {
+            display: inline-block;
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            background: #dcfce7;
+            color: #166534;
+            box-shadow: 0 2px 8px rgba(22, 163, 74, 0.2);
+        }
+
+        .urgency-badge {
+            display: inline-block;
+            padding: 0.3rem 0.7rem;
+            border-radius: 20px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .urgency-critical {
+            background: #fecaca;
+            color: #991b1b;
+        }
+
+        .urgency-high {
+            background: #fed7aa;
+            color: #92400e;
+        }
+
+        .urgency-medium {
+            background: #fef08a;
+            color: #854d0e;
+        }
+
+        .urgency-low {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .zone-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 0.75rem;
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .zone-desc {
+            font-size: 13px;
+            color: #9ca3af;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 700;
+            color: #16a34a;
+            margin-bottom: 0.7rem;
+        }
+
+        .form-input,
+        .form-textarea,
+        .form-select {
+            width: 100%;
+            padding: 0.9rem 1rem;
+            border: 2px solid #dcfce7;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            background: #f0fdf4;
+            color: #1f2937;
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus,
+        .form-textarea:focus,
+        .form-select:focus {
+            outline: none;
+            border-color: #16a34a;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.1);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .form-hint {
+            font-size: 12px;
+            color: #9ca3af;
+            margin-top: 0.5rem;
+        }
+
+        .btn {
+            padding: 1rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(22, 163, 74, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #15803d 0%, #166534 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(22, 163, 74, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 2px solid #dcfce7;
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+            border-left: 4px solid #16a34a;
+            padding: 1.2rem;
+            border-radius: 10px;
+            margin-top: 1.5rem;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.1);
+        }
+
+        .info-box-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #166534;
+            margin-bottom: 0.4rem;
+        }
+
+        .info-box-text {
+            font-size: 13px;
+            color: #15803d;
+            line-height: 1.6;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: #9ca3af;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 1rem;
+        }
+
+        .empty-text {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .success-box {
+            background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+            border: 2px solid #86efac;
+            color: #166534;
+            padding: 1.2rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.15);
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #dcfce7;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #f0fdf4;
+        }
+
+        .search-results {
+            margin-top: 0.5rem;
+            border: 2px solid #dcfce7;
+            border-radius: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+        }
+
+        .search-result-item {
+            padding: 0.8rem;
+            border-bottom: 1px solid #dcfce7;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: #f0fdf4;
+            color: #16a34a;
+        }
+
+        .comment-section {
+            background: #f0fdf4;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .comment-item {
+            background: white;
+            border: 1px solid #dcfce7;
+            border-radius: 8px;
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+            font-size: 13px;
+        }
+
+        .comment-author {
+            font-weight: 700;
+            color: #16a34a;
+        }
+
+        .comment-time {
+            font-size: 11px;
+            color: #9ca3af;
+        }
+
+        .comment-text {
+            margin-top: 0.4rem;
+            color: #4b5563;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 480px) {
+            .navbar h1 {
+                font-size: 26px;
+            }
+
+            .content {
+                padding: 1rem 1rem 6rem;
+            }
+
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        const { useState, useEffect } = React;
+
         const SUPABASE_URL = 'https://tu-proyecto.supabase.co';
         const SUPABASE_ANON_KEY = 'tu-anon-key-aqui';
 
