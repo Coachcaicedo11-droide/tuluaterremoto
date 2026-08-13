@@ -6,37 +6,33 @@
     <title>📍 Sitios de Tuluá</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); }
-        .app { max-width: 600px; margin: 0 auto; background: white; min-height: 100vh; box-shadow: 0 20px 60px rgba(22, 163, 74, 0.15); }
+        .app { max-width: 600px; margin: 0 auto; background: white; min-height: 100vh; box-shadow: 0 20px 60px rgba(0,0,0,0.1); }
         .navbar { background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; padding: 2rem 1.5rem; text-align: center; }
         .navbar h1 { font-size: 32px; font-weight: 700; margin-bottom: 0.5rem; }
         .navbar p { font-size: 14px; opacity: 0.95; }
-        .tabs { display: flex; gap: 0; border-bottom: 2px solid #f0fdf4; overflow-x: auto; }
-        .tab { flex: 0 0 auto; padding: 1rem; border: none; background: white; cursor: pointer; font-size: 12px; color: #9ca3af; font-weight: 600; border-bottom: 3px solid transparent; }
+        .tabs { display: flex; border-bottom: 2px solid #f0fdf4; }
+        .tab { flex: 1; padding: 1rem; background: white; border: none; cursor: pointer; font-size: 12px; font-weight: 600; color: #9ca3af; border-bottom: 3px solid transparent; }
+        .tab:hover { background: #f0fdf4; }
         .tab.active { color: #16a34a; border-bottom-color: #16a34a; background: #f0fdf4; }
-        .content { padding: 1.5rem; min-height: 400px; }
-        .hidden { display: none !important; }
-        .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
-        .stat { background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%); border: 2px solid #86efac; border-radius: 12px; padding: 1.2rem; text-align: center; }
-        .stat h3 { font-size: 11px; color: #9ca3af; text-transform: uppercase; margin-bottom: 0.5rem; }
-        .stat .num { font-size: 28px; font-weight: 700; color: #16a34a; }
-        .filters { display: flex; gap: 0.5rem; overflow-x: auto; margin-bottom: 1rem; flex-wrap: wrap; }
-        .filter-btn { padding: 0.5rem 1rem; border: 2px solid #dcfce7; background: white; border-radius: 20px; cursor: pointer; font-size: 12px; font-weight: 600; color: #16a34a; white-space: nowrap; }
-        .filter-btn.active { background: #16a34a; color: white; border-color: #16a34a; }
-        .zone { background: linear-gradient(135deg, #f0fdf4 0%, #f7fee7 100%); border: 2px solid #dcfce7; border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; }
-        .zone h3 { color: #16a34a; font-size: 18px; font-weight: 700; margin-bottom: 0.5rem; }
-        .zone-info { font-size: 13px; color: #6b7280; line-height: 1.8; }
+        .content { padding: 1.5rem; }
+        .section { display: none; }
+        .section.show { display: block; }
+        .stat-box { background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%); border: 2px solid #86efac; border-radius: 12px; padding: 1.5rem; text-align: center; margin-bottom: 1rem; }
+        .stat-box h3 { font-size: 12px; color: #9ca3af; text-transform: uppercase; margin-bottom: 0.5rem; }
+        .stat-box .num { font-size: 32px; font-weight: 700; color: #16a34a; }
+        .card { background: linear-gradient(135deg, #f0fdf4 0%, #f7fee7 100%); border: 2px solid #dcfce7; border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; }
+        .card h3 { color: #16a34a; font-size: 18px; font-weight: 700; margin-bottom: 0.5rem; }
+        .card p { font-size: 13px; color: #6b7280; margin-bottom: 0.4rem; }
         .form-group { margin-bottom: 1.5rem; }
         .form-label { display: block; font-size: 14px; font-weight: 700; color: #16a34a; margin-bottom: 0.7rem; }
-        .form-input { width: 100%; padding: 0.9rem; border: 2px solid #dcfce7; border-radius: 10px; font-size: 14px; background: #f0fdf4; font-family: inherit; }
-        .form-input:focus { outline: none; border-color: #16a34a; background: white; }
-        .btn { width: 100%; padding: 1rem; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; margin-bottom: 1rem; text-transform: uppercase; }
-        .btn:hover { opacity: 0.9; }
+        input { width: 100%; padding: 0.9rem; border: 2px solid #dcfce7; border-radius: 10px; font-size: 14px; background: #f0fdf4; font-family: inherit; }
+        input:focus { outline: none; border-color: #16a34a; background: white; }
+        button { width: 100%; padding: 1rem; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #16a34a 0%, #15803d 100%); color: white; margin-bottom: 1rem; text-transform: uppercase; }
+        button:hover { opacity: 0.9; }
         .success { background: #dcfce7; color: #166534; padding: 1rem; border-radius: 10px; margin-bottom: 1rem; font-weight: 600; }
-        .empty { text-align: center; padding: 2rem; color: #9ca3af; }
-        .info-box { background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%); border-left: 4px solid #16a34a; padding: 1.2rem; border-radius: 10px; margin-top: 1.5rem; }
-        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .empty { text-align: center; color: #9ca3af; padding: 2rem; }
     </style>
 </head>
 <body>
@@ -47,76 +43,51 @@
         </header>
 
         <nav class="tabs">
-            <button class="tab active" onclick="goTab(this, 'dashboard')">📊 Dashboard</button>
-            <button class="tab" onclick="goTab(this, 'browse')">🗺️ Explorar</button>
-            <button class="tab" onclick="goTab(this, 'add')">➕ Agregar</button>
-            <button class="tab" onclick="goTab(this, 'search')">🔍 Buscar</button>
-            <button class="tab" onclick="goTab(this, 'export')">📥 Exportar</button>
+            <button class="tab active" id="tab-dash">📊 Dashboard</button>
+            <button class="tab" id="tab-explore">🗺️ Explorar</button>
+            <button class="tab" id="tab-add">➕ Agregar</button>
         </nav>
 
         <div class="content">
             <!-- Dashboard -->
-            <div id="dashboard" class="tab-content">
-                <div class="dashboard">
-                    <div class="stat"><h3>✓ Zonas</h3><div class="num" id="stat-zones">0</div></div>
-                    <div class="stat"><h3>🏢 Sitios</h3><div class="num" id="stat-sites">0</div></div>
+            <div id="section-dash" class="section show">
+                <div class="stat-box">
+                    <h3>✓ Zonas</h3>
+                    <div class="num" id="count-zones">0</div>
                 </div>
-                <div id="dash-zones"></div>
+                <div id="dash-content"></div>
             </div>
 
             <!-- Explorar -->
-            <div id="browse" class="tab-content hidden">
-                <div class="filters" id="cat-filters"></div>
-                <div class="filters" id="urg-filters"></div>
-                <div id="zones-list"></div>
+            <div id="section-explore" class="section">
+                <div id="explore-content"></div>
             </div>
 
             <!-- Agregar -->
-            <div id="add" class="tab-content hidden">
+            <div id="section-add" class="section">
                 <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 1rem; color: #16a34a;">Agregar zona</h2>
-                <div id="msg"></div>
-                <form onsubmit="submitZone(event)">
+                <div id="success-msg"></div>
+                <form id="form-add">
                     <div class="form-group">
                         <label class="form-label">¿Nombre de la zona?</label>
-                        <input type="text" id="name" class="form-input" placeholder="Ej: La Esperanza" required>
+                        <input type="text" id="input-name" placeholder="Ej: La Esperanza" required>
                     </div>
-                    <div class="two-col">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div class="form-group">
                             <label class="form-label">Responsable</label>
-                            <input type="text" id="owner" class="form-input" placeholder="Nombre...">
+                            <input type="text" id="input-owner" placeholder="Nombre...">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Teléfono</label>
-                            <input type="tel" id="phone" class="form-input" placeholder="+57...">
+                            <input type="tel" id="input-phone" placeholder="+57...">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Horario</label>
-                        <input type="text" id="schedule" class="form-input" placeholder="Lunes a Viernes 8am - 5pm">
+                        <input type="text" id="input-schedule" placeholder="Lunes a Viernes 8am - 5pm">
                     </div>
-                    <button type="submit" class="btn">✓ Agregar zona</button>
+                    <button type="submit">✓ Agregar zona</button>
                 </form>
-                <div class="info-box">
-                    <div style="font-weight: 700; color: #166534; margin-bottom: 0.4rem;">💾 Almacenamiento</div>
-                    <div style="font-size: 13px; color: #15803d;">Los datos se guardan en Supabase. ¡Conectado!</div>
-                </div>
-            </div>
-
-            <!-- Buscar -->
-            <div id="search" class="tab-content hidden">
-                <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 1rem; color: #16a34a;">Búsqueda</h2>
-                <input type="text" id="searchInput" class="form-input" placeholder="Buscar zona..." onkeyup="doSearch()">
-                <div id="search-results" style="margin-top: 1rem;"></div>
-            </div>
-
-            <!-- Exportar -->
-            <div id="export" class="tab-content hidden">
-                <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 1rem; color: #16a34a;">Descargar datos</h2>
-                <button class="btn" onclick="downloadCSV()">📥 Descargar como CSV</button>
-                <div class="info-box">
-                    <div style="font-weight: 700; color: #166534; margin-bottom: 0.4rem;">📊 CSV incluye</div>
-                    <div style="font-size: 13px; color: #15803d;">Zona, Responsable, Teléfono, Horario, Estado</div>
-                </div>
             </div>
         </div>
     </div>
@@ -128,136 +99,104 @@
 
         let zones = [];
 
-        async function loadZones() {
+        // Cargar datos
+        async function loadData() {
             try {
-                const { data, error } = await supabase.from('zones').select('*').order('created_at', { ascending: false });
-                if (error) { console.error('Error:', error); return; }
+                const { data } = await supabase.from('zones').select('*');
                 zones = data || [];
-                updateAll();
+                updateUI();
             } catch (error) {
                 console.error('Error:', error);
             }
         }
 
-        function updateAll() {
-            document.getElementById('stat-zones').textContent = zones.length;
-            updateDash();
-            updateBrowse();
-        }
+        // Actualizar UI
+        function updateUI() {
+            document.getElementById('count-zones').textContent = zones.length;
 
-        function updateDash() {
-            const html = zones.slice(0, 3).map(z => `
-                <div class="zone">
-                    <h3>📍 ${z.name}</h3>
-                    <div class="zone-info">
-                        <div>👤 ${z.owner || 'Sin asignar'}</div>
-                        <div>📞 ${z.phone || 'Sin teléfono'}</div>
-                        <div>🕐 ${z.schedule || 'Por definir'}</div>
+            const dashHtml = zones.length === 0 
+                ? '<div class="empty">🔍 Sin zonas registradas</div>'
+                : zones.map(z => `
+                    <div class="card">
+                        <h3>📍 ${z.name}</h3>
+                        <p>👤 ${z.owner || 'Sin asignar'}</p>
+                        <p>📞 ${z.phone || 'Sin teléfono'}</p>
+                        <p>🕐 ${z.schedule || 'Por definir'}</p>
                     </div>
-                </div>
-            `).join('');
-            document.getElementById('dash-zones').innerHTML = html || '<div class="empty">🔍 Sin zonas</div>';
-        }
+                `).join('');
+            document.getElementById('dash-content').innerHTML = dashHtml;
 
-        function updateBrowse() {
-            const html = zones.map(z => `
-                <div class="zone">
-                    <h3>📍 ${z.name}</h3>
-                    <div class="zone-info">
-                        <div>👤 ${z.owner || 'Sin asignar'}</div>
-                        <div>📞 ${z.phone || 'Sin teléfono'}</div>
-                        <div>🕐 ${z.schedule || 'Por definir'}</div>
-                        <div><span style="background: ${z.status === 'approved' ? '#dcfce7' : '#fef08a'}; color: ${z.status === 'approved' ? '#166534' : '#854d0e'}; padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 11px; font-weight: 700;">${z.status === 'approved' ? '✓ Verificada' : '⏳ Pendiente'}</span></div>
+            const exploreHtml = zones.length === 0 
+                ? '<div class="empty">🔍 Sin zonas registradas</div>'
+                : zones.map(z => `
+                    <div class="card">
+                        <h3>📍 ${z.name}</h3>
+                        <p>👤 ${z.owner || 'Sin asignar'}</p>
+                        <p>📞 ${z.phone || 'Sin teléfono'}</p>
+                        <p>🕐 ${z.schedule || 'Por definir'}</p>
                     </div>
-                </div>
-            `).join('');
-            document.getElementById('zones-list').innerHTML = html || '<div class="empty">🔍 Sin zonas</div>';
-
-            document.getElementById('cat-filters').innerHTML = ['Todos', 'Acopio', 'Iglesia', 'Escuela'].map(c => 
-                `<button class="filter-btn" onclick="doFilter()">${c}</button>`
-            ).join('');
-            document.getElementById('urg-filters').innerHTML = ['Todas urgencias', 'Crítico', 'Alto', 'Medio', 'Bajo'].map(u => 
-                `<button class="filter-btn" onclick="doFilter()">${u}</button>`
-            ).join('');
+                `).join('');
+            document.getElementById('explore-content').innerHTML = exploreHtml;
         }
 
-        function doFilter() {
-            updateBrowse();
-        }
-
-        async function submitZone(e) {
+        // Agregar zona
+        document.getElementById('form-add').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const name = document.getElementById('name').value.trim();
-            if (!name) { alert('Nombre requerido'); return; }
+            
+            const name = document.getElementById('input-name').value;
+            const owner = document.getElementById('input-owner').value || null;
+            const phone = document.getElementById('input-phone').value || null;
+            const schedule = document.getElementById('input-schedule').value || null;
 
             try {
                 const { error } = await supabase.from('zones').insert([{
-                    name,
-                    owner: document.getElementById('owner').value.trim() || null,
-                    phone: document.getElementById('phone').value.trim() || null,
-                    schedule: document.getElementById('schedule').value.trim() || null,
-                    status: 'pending'
+                    name, owner, phone, schedule, status: 'pending'
                 }]);
 
                 if (error) {
-                    console.error('Error:', error);
-                    alert('Error: ' + (error.message || 'No se pudo guardar'));
+                    alert('Error: ' + error.message);
                     return;
                 }
 
-                document.getElementById('name').value = '';
-                document.getElementById('owner').value = '';
-                document.getElementById('phone').value = '';
-                document.getElementById('schedule').value = '';
+                document.getElementById('input-name').value = '';
+                document.getElementById('input-owner').value = '';
+                document.getElementById('input-phone').value = '';
+                document.getElementById('input-schedule').value = '';
 
-                const msg = document.getElementById('msg');
+                const msg = document.getElementById('success-msg');
                 msg.innerHTML = '<div class="success">✓ ¡Zona agregada!</div>';
                 setTimeout(() => msg.innerHTML = '', 3000);
 
-                await loadZones();
+                await loadData();
             } catch (error) {
-                console.error('Error:', error);
                 alert('Error: ' + error.message);
             }
-        }
+        });
 
-        function goTab(btn, name) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(name).classList.remove('hidden');
-            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            btn.classList.add('active');
-        }
+        // Tabs
+        document.getElementById('tab-dash').addEventListener('click', function() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('show'));
+            document.getElementById('section-dash').classList.add('show');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+        });
 
-        function doSearch() {
-            const term = document.getElementById('searchInput').value.toLowerCase();
-            const results = zones.filter(z => z.name.toLowerCase().includes(term));
-            const html = results.map(z => `
-                <div class="zone">
-                    <h3>📍 ${z.name}</h3>
-                    <div class="zone-info">
-                        <div>👤 ${z.owner || 'Sin asignar'}</div>
-                        <div>📞 ${z.phone || 'Sin teléfono'}</div>
-                    </div>
-                </div>
-            `).join('');
-            document.getElementById('search-results').innerHTML = html || '<div class="empty">No hay coincidencias</div>';
-        }
+        document.getElementById('tab-explore').addEventListener('click', function() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('show'));
+            document.getElementById('section-explore').classList.add('show');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+        });
 
-        function downloadCSV() {
-            let csv = 'Zona,Responsable,Teléfono,Horario,Estado\n';
-            zones.forEach(z => {
-                csv += `"${z.name}","${z.owner || ''}","${z.phone || ''}","${z.schedule || ''}","${z.status}"\n`;
-            });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'sitios-tulua.csv';
-            a.click();
-        }
+        document.getElementById('tab-add').addEventListener('click', function() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('show'));
+            document.getElementById('section-add').classList.add('show');
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+        });
 
-        loadZones();
-        setInterval(loadZones, 5000);
+        // Cargar al inicio
+        loadData();
     </script>
 </body>
 </html>
