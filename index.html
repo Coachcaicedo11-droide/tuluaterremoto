@@ -47,11 +47,11 @@
         </header>
 
         <nav class="tabs">
-            <button class="tab active" onclick="goTab('dashboard')">📊 Dashboard</button>
-            <button class="tab" onclick="goTab('browse')">🗺️ Explorar</button>
-            <button class="tab" onclick="goTab('add')">➕ Agregar</button>
-            <button class="tab" onclick="goTab('search')">🔍 Buscar</button>
-            <button class="tab" onclick="goTab('export')">📥 Exportar</button>
+            <button class="tab active" onclick="goTab(this, 'dashboard')">📊 Dashboard</button>
+            <button class="tab" onclick="goTab(this, 'browse')">🗺️ Explorar</button>
+            <button class="tab" onclick="goTab(this, 'add')">➕ Agregar</button>
+            <button class="tab" onclick="goTab(this, 'search')">🔍 Buscar</button>
+            <button class="tab" onclick="goTab(this, 'export')">📥 Exportar</button>
         </nav>
 
         <div class="content">
@@ -127,8 +127,6 @@
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let zones = [];
-        let catFilter = 'all';
-        let urgFilter = 'all';
 
         async function loadZones() {
             try {
@@ -175,13 +173,16 @@
             `).join('');
             document.getElementById('zones-list').innerHTML = html || '<div class="empty">🔍 Sin zonas</div>';
 
-            // Filtros
             document.getElementById('cat-filters').innerHTML = ['Todos', 'Acopio', 'Iglesia', 'Escuela'].map(c => 
-                `<button class="filter-btn" onclick="catFilter='${c}'; updateBrowse();">${c}</button>`
+                `<button class="filter-btn" onclick="doFilter()">${c}</button>`
             ).join('');
             document.getElementById('urg-filters').innerHTML = ['Todas urgencias', 'Crítico', 'Alto', 'Medio', 'Bajo'].map(u => 
-                `<button class="filter-btn" onclick="urgFilter='${u}'; updateBrowse();">${u}</button>`
+                `<button class="filter-btn" onclick="doFilter()">${u}</button>`
             ).join('');
+        }
+
+        function doFilter() {
+            updateBrowse();
         }
 
         async function submitZone(e) {
@@ -220,11 +221,11 @@
             }
         }
 
-        function goTab(name) {
+        function goTab(btn, name) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById(name).classList.remove('hidden');
             document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-            event.target.classList.add('active');
+            btn.classList.add('active');
         }
 
         function doSearch() {
